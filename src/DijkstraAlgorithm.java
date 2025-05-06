@@ -11,11 +11,11 @@ public class DijkstraAlgorithm {
         int height = costMatrix[0].length;
 
         // 优先队列，按距离排序
-        PriorityQueue<Node> pq = new PriorityQueue<>();
+        PriorityQueue<Node> pq = new PriorityQueue<>();// PriorityQueue 会自动维护一个按距离升序排列的队列
         double[][] dist = new double[width][height];
         Point[][] prev = new Point[width][height];
 
-        // 初始化
+        // 初始化：距离都设为无穷大，表示尚未找到路径到达这些节点
         for (int x = 0; x < width; x++) {
             Arrays.fill(dist[x], Double.POSITIVE_INFINITY);
         }
@@ -24,9 +24,10 @@ public class DijkstraAlgorithm {
 
         // Dijkstra算法主循环
         while (!pq.isEmpty()) {
-            Node current = pq.poll();
+            Node current = pq.poll();//移除并返回队列中距离最小的 Node 对象
             if (current.point.equals(end)) break;
 
+            //每次8方向fori遍历添加（未检查过的点）到pq队列中，下一次弹出距离最小的点，选出新的距离最小点，继续循环
             for (int i = 0; i < 8; i++) {
                 int nx = current.point.x + dx[i];
                 int ny = current.point.y + dy[i];
@@ -38,7 +39,7 @@ public class DijkstraAlgorithm {
 
                     if (newDist < dist[nx][ny]) {
                         dist[nx][ny] = newDist;
-                        prev[nx][ny] = current.point;
+                        prev[nx][ny] = current.point;//prev[nx][ny]记录下一步的父节点
                         pq.add(new Node(new Point(nx, ny), newDist));
                     }
                 }

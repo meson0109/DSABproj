@@ -16,11 +16,11 @@ public class Main2 {
 
     private static Point currentMousePoint = null;
 
-    // 记录所有种子点和完整路径
+    // 种子点和路径
     private static java.util.List<Point> seedPoints = new ArrayList<>();
     private static java.util.List<java.util.List<Point>> allPaths = new ArrayList<>();
     private static java.util.List<Point> currentPath = new ArrayList<>();
-    private static final int MAX_PATH_LENGTH = 20; // 路径最大长度阈值
+    private static final int MAX_PATH_LENGTH = 100; // 路径最大长度阈值
 
     public static void main(String[] args) {
         createSelectionWindow();
@@ -79,8 +79,8 @@ public class Main2 {
                 showImageWindow(image, selectedFile.getName());
             } catch (Exception ex) {
                 JOptionPane.showMessageDialog(selectionFrame,
-                        "无法加载图片: " + ex.getMessage(),
-                        "错误",
+                        "The picture cannot be loaded.: " + ex.getMessage(),
+                        "Error",
                         JOptionPane.ERROR_MESSAGE);
             }
         }
@@ -115,7 +115,9 @@ public class Main2 {
             addMouseListener(new MouseAdapter() {
                 @Override
                 public void mousePressed(MouseEvent e) {
-                    if (SwingUtilities.isLeftMouseButton(e)) {
+                    if (SwingUtilities.isLeftMouseButton(e)&e.getClickCount()==2) {
+                        //双击左键用dijkstra算法计算currentPath和第一个种子点之间的路径，并停止追踪
+                    } else if (SwingUtilities.isLeftMouseButton(e)) {
                         // 左键：设置新起点或添加路径点
                         if (seedPoints.isEmpty()) {
                             seedPoints.add(e.getPoint());
@@ -123,10 +125,15 @@ public class Main2 {
                             currentPath.add(e.getPoint());
                         } else {
                             // 计算从最后种子点到当前点的路径
+                            currentMousePoint = e.getPoint();
+                            Point lastSeed = seedPoints.get(seedPoints.size()-1);
                             java.util.List<Point> pathSegment = DijkstraAlgorithm.findShortestPath(
-                                    costMatrix, seedPoints.get(seedPoints.size()-1), e.getPoint());
+                                    costMatrix, lastSeed, currentMousePoint);
                             if (!pathSegment.isEmpty()) {
+                                currentPath = new ArrayList<>();
+                                currentPath.add(lastSeed);
                                 currentPath.addAll(pathSegment.subList(1, pathSegment.size()));
+
                                 allPaths.add(new ArrayList<>(currentPath));
                                 seedPoints.add(e.getPoint());
                                 currentPath.clear();
@@ -134,11 +141,36 @@ public class Main2 {
                             }
                         }
                         repaint();
+                    } else if (SwingUtilities.isRightMouseButton(e)&e.getClickCount()==2) {
+                        //双击右键清空所有点
+                        currentPath.clear();
+                        seedPoints.clear();
+                        allPaths.clear();
+                        currentMousePoint = null;
+                        repaint();
                     } else if (SwingUtilities.isRightMouseButton(e)) {
-                        //单击右键撤销
+                        //单击右键撤销一步
+                        Point lastSeed = seedPoints.get(seedPoints.size()-1);
+                        if(distBetweenPoints(lastSeed,currentMousePoint)<10){
+                            if(!allPaths.isEmpty()) {
+                                currentPath.clear();
+                                seedPoints.remove(seedPoints.size()-1);
+                                allPaths.remove(allPaths.size()-1);
+//                            if (!seedPoints.isEmpty()) {
+//                                currentPath.addAll(allPaths.get(allPaths.size()-1));
+//                            }
+                                updateCurrentPath();
+                            }else{
+                                currentPath.clear();
+                                seedPoints.clear();
+                                allPaths.clear();
+                                currentMousePoint = null;
+                            }
+                        }
+                        repaint();
                     }
-                    //双击左键用dijkstra算法计算currentPath和第一个种子点之间的路径
-                    //双击右键清空所有点
+
+
                 }
             });
 
@@ -230,6 +262,12 @@ public class Main2 {
             g.drawImage(source, 0, 0, null);
             g.dispose();
             return copy;
+        }
+
+        public double distBetweenPoints(Point currnet, Point other) {
+            int dx = currnet.x - other.x;
+            int dy = currnet.y - other.y;
+            return Math.sqrt(dx * dx + dy * dy);
         }
     }
 }
