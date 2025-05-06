@@ -107,6 +107,7 @@ public class Main2 {
     static class ImagePanel extends JPanel {
         private final BufferedImage image;
         private BufferedImage displayImage;
+        private boolean stop=false;
 
         public ImagePanel(BufferedImage image) {
             this.image = image;
@@ -115,61 +116,85 @@ public class Main2 {
             addMouseListener(new MouseAdapter() {
                 @Override
                 public void mousePressed(MouseEvent e) {
-                    if (SwingUtilities.isLeftMouseButton(e)&e.getClickCount()==2) {
-                        //双击左键用dijkstra算法计算currentPath和第一个种子点之间的路径，并停止追踪
-                    } else if (SwingUtilities.isLeftMouseButton(e)) {
-                        // 左键：设置新起点或添加路径点
-                        if (seedPoints.isEmpty()) {
-                            seedPoints.add(e.getPoint());
-                            currentPath.clear();
-                            currentPath.add(e.getPoint());
-                        } else {
-                            // 计算从最后种子点到当前点的路径
-                            currentMousePoint = e.getPoint();
-                            Point lastSeed = seedPoints.get(seedPoints.size()-1);
-                            java.util.List<Point> pathSegment = DijkstraAlgorithm.findShortestPath(
-                                    costMatrix, lastSeed, currentMousePoint);
-                            if (!pathSegment.isEmpty()) {
-                                currentPath = new ArrayList<>();
-                                currentPath.add(lastSeed);
-                                currentPath.addAll(pathSegment.subList(1, pathSegment.size()));
-
-                                allPaths.add(new ArrayList<>(currentPath));
-                                seedPoints.add(e.getPoint());
-                                currentPath.clear();
-                                currentPath.add(e.getPoint());
-                            }
-                        }
-                        repaint();
-                    } else if (SwingUtilities.isRightMouseButton(e)&e.getClickCount()==2) {
-                        //双击右键清空所有点
+                    if (stop && SwingUtilities.isRightMouseButton(e) && e.getClickCount()==2) {
+                        stop=false;
                         currentPath.clear();
                         seedPoints.clear();
                         allPaths.clear();
                         currentMousePoint = null;
                         repaint();
-                    } else if (SwingUtilities.isRightMouseButton(e)) {
-                        //单击右键撤销一步
-                        Point lastSeed = seedPoints.get(seedPoints.size()-1);
-                        if(distBetweenPoints(lastSeed,currentMousePoint)<10){
-                            if(!allPaths.isEmpty()) {
+                    }else if (!stop && e.getClickCount()==2) {
+                        if(SwingUtilities.isLeftMouseButton(e)){
+                            //双击左键用dijkstra算法计算currentMousePoint和第一个种子点之间的路径，并停止追踪
+                            Point firstSeed = seedPoints.get(0);
+                            java.util.List<Point> path = DijkstraAlgorithm.findShortestPath(
+                                    costMatrix, firstSeed, currentMousePoint);
+                            currentPath = new ArrayList<>();
+                            currentPath.addAll(path.subList(1, path.size()));
+                            allPaths.add(new ArrayList<>(currentPath));
+                            repaint();
+                            currentPath.clear();
+                            //stop tracking
+                            stop=true;
+                            currentMousePoint = null;
+                        }else if(SwingUtilities.isRightMouseButton(e)){
+                            //双击右键清空所有点
+                            currentPath.clear();
+                            seedPoints.clear();
+                            allPaths.clear();
+                            currentMousePoint = null;
+                            repaint();
+                        }
+                    } else if (!stop ) {
+                        if(SwingUtilities.isLeftMouseButton(e)){
+                            // 左键：设置新起点或添加路径点
+                            if (seedPoints.isEmpty()) {
+                                seedPoints.add(e.getPoint());
                                 currentPath.clear();
-                                seedPoints.remove(seedPoints.size()-1);
-                                allPaths.remove(allPaths.size()-1);
+                                currentPath.add(e.getPoint());
+                            } else {
+                                // 计算从最后种子点到当前点的路径
+                                currentMousePoint = e.getPoint();
+                                Point lastSeed = seedPoints.get(seedPoints.size()-1);
+                                java.util.List<Point> pathSegment = DijkstraAlgorithm.findShortestPath(
+                                        costMatrix, lastSeed, currentMousePoint);
+                                if (!pathSegment.isEmpty()) {
+                                    currentPath = new ArrayList<>();
+                                    currentPath.add(lastSeed);
+                                    currentPath.addAll(pathSegment.subList(1, pathSegment.size()));
+
+                                    allPaths.add(new ArrayList<>(currentPath));
+                                    seedPoints.add(e.getPoint());
+                                    currentPath.clear();
+                                    currentPath.add(e.getPoint());
+                                }
+                            }
+                            repaint();
+                        }else if(SwingUtilities.isRightMouseButton(e)){
+                            //单击右键撤销一步
+                            if (!seedPoints.isEmpty()) {
+                                Point lastSeed = seedPoints.get(seedPoints.size()-1);
+                                if(distBetweenPoints(lastSeed,currentMousePoint)<10){
+                                    if(!allPaths.isEmpty()) {
+                                        currentPath.clear();
+                                        seedPoints.remove(seedPoints.size()-1);
+                                        allPaths.remove(allPaths.size()-1);
 //                            if (!seedPoints.isEmpty()) {
 //                                currentPath.addAll(allPaths.get(allPaths.size()-1));
 //                            }
-                                updateCurrentPath();
+                                        updateCurrentPath();
+                                    }
+                                }
                             }else{
                                 currentPath.clear();
                                 seedPoints.clear();
                                 allPaths.clear();
                                 currentMousePoint = null;
                             }
-                        }
-                        repaint();
-                    }
 
+                            repaint();
+                        }
+                    }
 
                 }
             });
@@ -177,7 +202,7 @@ public class Main2 {
             addMouseMotionListener(new MouseAdapter() {
                 @Override
                 public void mouseMoved(MouseEvent e) {
-                    if (!seedPoints.isEmpty() && !currentPath.isEmpty()) {
+                    if (!stop && !seedPoints.isEmpty() && !currentPath.isEmpty()) {
                         currentMousePoint = e.getPoint();
                         updateCurrentPath();
                         repaint();
