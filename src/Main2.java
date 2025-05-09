@@ -1,6 +1,10 @@
 import javax.swing.*;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import java.awt.*;
+import java.awt.datatransfer.Clipboard;
+import java.awt.datatransfer.DataFlavor;
+import java.awt.datatransfer.Transferable;
+import java.awt.datatransfer.UnsupportedFlavorException;
 import java.awt.event.*;
 import java.awt.image.BufferedImage;
 import javax.imageio.ImageIO;
@@ -338,15 +342,124 @@ public class Main2 {
             // 创建主窗口
             JFrame frame = new JFrame(title);
             frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+            frame.setLayout(new BorderLayout());
 
-            // 创建可滚动的面板
+            // 创建功能栏面板
+            JPanel toolbar = new JPanel(new FlowLayout(FlowLayout.LEFT));
+
+            // 创建复制按钮
+            JButton copyButton = new JButton("复制");
+            copyButton.addActionListener(e -> copyImageToClipboard(image));
+
+            // 创建保存按钮
+            JButton saveButton = new JButton("保存");
+            saveButton.addActionListener(e -> saveImageToFile(image, frame));
+
+            // 添加按钮到功能栏
+            toolbar.add(copyButton);
+            toolbar.add(saveButton);
+
+            // 创建可滚动的图片面板
             JScrollPane scrollPane = new JScrollPane(new JLabel(new ImageIcon(image)));
 
+            // 添加组件到主窗口
+            frame.add(toolbar, BorderLayout.NORTH);
+            frame.add(scrollPane, BorderLayout.CENTER);
+
             // 设置窗口大小和位置
-            frame.getContentPane().add(scrollPane);
             frame.setSize(800, 600);
             frame.setLocationRelativeTo(null); // 居中显示
             frame.setVisible(true);
+        }
+
+        /**
+         * 将图片复制到剪贴板
+         */
+        private static void copyImageToClipboard(BufferedImage image) {
+            Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
+            clipboard.setContents(new TransferableImage(image), null);
+            JOptionPane.showMessageDialog(null, "图片已复制到剪贴板", "成功", JOptionPane.INFORMATION_MESSAGE);
+        }
+
+        /**
+         * 将图片保存到文件
+         */
+        private static void saveImageToFile(BufferedImage image, JFrame parentFrame) {
+            JFileChooser fileChooser = new JFileChooser();
+            fileChooser.setDialogTitle("保存图片");
+
+            // 设置文件过滤器
+            FileNameExtensionFilter filter = new FileNameExtensionFilter(
+                    "图片文件", "png", "jpg", "jpeg", "gif", "bmp");
+            fileChooser.setFileFilter(filter);
+
+            // 设置默认文件名
+            fileChooser.setSelectedFile(new File("image.png"));
+
+            int userSelection = fileChooser.showSaveDialog(parentFrame);
+
+            if (userSelection == JFileChooser.APPROVE_OPTION) {
+                File fileToSave = fileChooser.getSelectedFile();
+                String filePath = fileToSave.getAbsolutePath();
+
+                // 确保文件有正确的扩展名
+                if (!filePath.toLowerCase().matches(".*\\.(png|jpg|jpeg|gif|bmp)$")) {
+                    String ext = fileChooser.getFileFilter().getDescription().contains("PNG") ? "png" : "jpg";
+                    fileToSave = new File(filePath + "." + ext);
+                }
+
+                try {
+                    String formatName = getFormatName(fileToSave.getName());
+                    ImageIO.write(image, formatName, fileToSave);
+                    JOptionPane.showMessageDialog(parentFrame,
+                            "图片已保存到: " + fileToSave.getAbsolutePath(),
+                            "保存成功", JOptionPane.INFORMATION_MESSAGE);
+                } catch (IOException e) {
+                    JOptionPane.showMessageDialog(parentFrame,
+                            "保存失败: " + e.getMessage(),
+                            "错误", JOptionPane.ERROR_MESSAGE);
+                }
+            }
+        }
+
+        /**
+         * 从文件名获取图片格式
+         */
+        private static String getFormatName(String fileName) {
+            if (fileName.toLowerCase().endsWith(".png")) return "png";
+            if (fileName.toLowerCase().endsWith(".jpg") || fileName.toLowerCase().endsWith(".jpeg")) return "jpg";
+            if (fileName.toLowerCase().endsWith(".gif")) return "gif";
+            if (fileName.toLowerCase().endsWith(".bmp")) return "bmp";
+            return "png"; // 默认格式
+        }
+
+        /**
+         * 用于图片传输的内部类
+         */
+        private static class TransferableImage implements Transferable {
+            private final BufferedImage image;
+
+            public TransferableImage(BufferedImage image) {
+                this.image = image;
+            }
+
+            @Override
+            public DataFlavor[] getTransferDataFlavors() {
+                return new DataFlavor[]{DataFlavor.imageFlavor};
+            }
+
+            @Override
+            public boolean isDataFlavorSupported(DataFlavor flavor) {
+                return DataFlavor.imageFlavor.equals(flavor);
+            }
+
+            @Override
+            public Object getTransferData(DataFlavor flavor) throws UnsupportedFlavorException, IOException {
+                if (!isDataFlavorSupported(flavor)) {
+                    throw new UnsupportedFlavorException(flavor);
+                }
+                return image;
+            }
         }
 
 
