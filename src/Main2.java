@@ -5,7 +5,9 @@ import java.awt.event.*;
 import java.awt.image.BufferedImage;
 import javax.imageio.ImageIO;
 import java.io.File;
+import java.io.IOException;
 import java.util.*;
+import java.util.List;
 
 public class Main2 {
     private static JFrame selectionFrame;
@@ -13,18 +15,18 @@ public class Main2 {
     public static BufferedImage selectedImage;
     public static double[][] grayMatrix;
     public static double[][] costMatrix;
+    public static int[][] boolMatrix;
 
     private static Point currentMousePoint = null;
 
     // 种子点和路径
-    private static java.util.List<Point> seedPoints = new ArrayList<>();
-    private static java.util.List<java.util.List<Point>> allPaths = new ArrayList<>();
-    private static java.util.List<Point> currentPath = new ArrayList<>();
+    private static List<Point> seedPoints = new ArrayList<>();
+    private static List<List<Point>> allPaths = new ArrayList<>();
+    private static List<Point> currentPath = new ArrayList<>();
     private static final int MAX_PATH_LENGTH = 100; // 路径最大长度阈值
 
     public static void main(String[] args) {
         createSelectionWindow();
-
     }
 
     private static void createSelectionWindow() {
@@ -109,6 +111,7 @@ public class Main2 {
         private BufferedImage displayImage;
         private boolean stop=false;
 
+
         public ImagePanel(BufferedImage image) {
             this.image = image;
             this.displayImage = copyImage(image);
@@ -127,16 +130,52 @@ public class Main2 {
                         if(SwingUtilities.isLeftMouseButton(e)){
                             //双击左键用dijkstra算法计算currentMousePoint和第一个种子点之间的路径，并停止追踪
                             Point firstSeed = seedPoints.get(0);
-                            java.util.List<Point> path = DijkstraAlgorithm.findShortestPath(
+                            List<Point> path = DijkstraAlgorithm.findShortestPath(
                                     costMatrix, firstSeed, currentMousePoint);
                             currentPath = new ArrayList<>();
                             currentPath.addAll(path.subList(1, path.size()));
                             allPaths.add(new ArrayList<>(currentPath));
+                            seedPoints.clear();
                             repaint();
                             currentPath.clear();
                             //stop tracking
                             stop=true;
                             currentMousePoint = null;
+
+                            boolMatrix=new int[image.getWidth()][image.getHeight()];
+                            for(List<Point> pl : allPaths){
+                                for(Point p : pl){
+                                    boolMatrix[p.x][p.y]=1;
+                                }
+                            }
+                            StuffAlgorithm.surround(boolMatrix,image.getWidth(),image.getHeight());
+                            System.out.println(Arrays.deepToString(boolMatrix));
+
+
+
+                            Set<Point> surrounded= new HashSet<>();
+                            for (int i = 0; i < image.getWidth(); i++) {
+                                for (int j = 0; j < image.getHeight(); j++) {
+                                    if(boolMatrix[i][j]>=2){
+                                        surrounded.add(new Point(i,j));
+                                    }
+                                }
+                            }
+
+                            BufferedImage result = cropToMinimumBounds(image, surrounded);
+                            try {
+                                ImageIO.write(result, "PNG", new File("output.png"));
+                            } catch (IOException ex) {
+                                throw new RuntimeException(ex);
+                            }
+
+                            showScalableImage(result,"图片");
+
+
+
+
+
+
                         }else if(SwingUtilities.isRightMouseButton(e)){
                             //双击右键清空所有点
                             currentPath.clear();
@@ -156,7 +195,7 @@ public class Main2 {
                                 // 计算从最后种子点到当前点的路径
                                 currentMousePoint = e.getPoint();
                                 Point lastSeed = seedPoints.get(seedPoints.size()-1);
-                                java.util.List<Point> pathSegment = DijkstraAlgorithm.findShortestPath(
+                                List<Point> pathSegment = DijkstraAlgorithm.findShortestPath(
                                         costMatrix, lastSeed, currentMousePoint);
                                 if (!pathSegment.isEmpty()) {
                                     currentPath = new ArrayList<>();
@@ -213,7 +252,7 @@ public class Main2 {
 
         private void updateCurrentPath() {
             Point lastSeed = seedPoints.get(seedPoints.size()-1);
-            java.util.List<Point> newSegment = DijkstraAlgorithm.findShortestPath(
+            List<Point> newSegment = DijkstraAlgorithm.findShortestPath(
                     costMatrix, lastSeed, currentMousePoint);
 
             if (!newSegment.isEmpty()) {
@@ -243,7 +282,7 @@ public class Main2 {
             // 已完成的路径PathCooling
             g2d.setColor(Color.RED);
             g2d.setStroke(new BasicStroke(2));
-            for (java.util.List<Point> path : allPaths) {
+            for (List<Point> path : allPaths) {
                 drawPath(g2d, path);
             }
 
@@ -270,7 +309,7 @@ public class Main2 {
             g.drawImage(displayImage, 0, 0, null);
         }
 
-        private void drawPath(Graphics2D g2d, java.util.List<Point> path) {
+        private void drawPath(Graphics2D g2d, List<Point> path) {
             if (path.size() > 1) {
                 for (int i = 0; i < path.size() - 1; i++) {
                     Point p1 = path.get(i);
@@ -293,6 +332,56 @@ public class Main2 {
             int dx = currnet.x - other.x;
             int dy = currnet.y - other.y;
             return Math.sqrt(dx * dx + dy * dy);
+        }
+
+        public static void showScalableImage(BufferedImage image, String title) {
+            // 创建主窗口
+            JFrame frame = new JFrame(title);
+            frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+
+            // 创建可滚动的面板
+            JScrollPane scrollPane = new JScrollPane(new JLabel(new ImageIcon(image)));
+
+            // 设置窗口大小和位置
+            frame.getContentPane().add(scrollPane);
+            frame.setSize(800, 600);
+            frame.setLocationRelativeTo(null); // 居中显示
+            frame.setVisible(true);
+        }
+
+
+        public static BufferedImage cropToMinimumBounds(BufferedImage original, Set<Point> pixelsToKeep) {
+            if (pixelsToKeep.isEmpty()) {
+                return null;
+            }
+
+            // 计算最小边界矩形
+            int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE;
+            int maxX = Integer.MIN_VALUE, maxY = Integer.MIN_VALUE;
+
+            for (Point p : pixelsToKeep) {
+                minX = Math.min(minX, p.x);
+                minY = Math.min(minY, p.y);
+                maxX = Math.max(maxX, p.x);
+                maxY = Math.max(maxY, p.y);
+            }
+
+            int width = maxX - minX + 1;
+            int height = maxY - minY + 1;
+
+            // 创建新图像
+            BufferedImage result = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+
+            // 填充新图像
+            for (Point p : pixelsToKeep) {
+                int newX = p.x - minX;
+                int newY = p.y - minY;
+                if (newX >= 0 && newY >= 0 && newX < width && newY < height) {
+                    result.setRGB(newX, newY, original.getRGB(p.x, p.y));
+                }
+            }
+
+            return result;
         }
     }
 }
