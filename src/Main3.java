@@ -136,50 +136,51 @@ public class Main3 {
                     }else if (!stop && e.getClickCount()==2) {
                         if(SwingUtilities.isLeftMouseButton(e)){
                             //双击左键用dijkstra算法计算currentMousePoint和第一个种子点之间的路径，并停止追踪
+
                             Point firstSeed = seedPoints.get(0);
-                            List<Point> path = DijkstraAlgorithm.findShortestPath(
+                            List<Point> pathLS=DijkstraAlgorithm.findShortestPath(
                                     costMatrix, firstSeed, currentMousePoint);
-                            currentPath = new ArrayList<>();
-                            currentPath.addAll(path.subList(1, path.size()));
-                            allPaths.add(new ArrayList<>(currentPath));
-                            seedPoints.clear();
-                            repaint();
-                            currentPath.clear();
-                            //stop tracking
-                            stop=true;
-                            currentMousePoint = null;
+                            if(pathLS.size()>1){
+                                List<Point> path = pathLS;
+                                currentPath = new ArrayList<>();
+                                currentPath.addAll(path.subList(1, path.size()));
+                                allPaths.add(new ArrayList<>(currentPath));
+                                seedPoints.clear();
+                                repaint();
+                                currentPath.clear();
+                                //stop tracking
+                                stop=true;
+                                currentMousePoint = null;
 
-                            boolMatrix=new int[image.getWidth()][image.getHeight()];
-                            for(List<Point> pl : allPaths){
-                                for(Point p : pl){
-                                    boolMatrix[p.x][p.y]=1;
-                                }
-                            }
-                            StuffAlgorithm.surround(boolMatrix,image.getWidth(),image.getHeight());
-//                            System.out.println(Arrays.deepToString(boolMatrix));
-
-
-
-                            Set<Point> surrounded= new HashSet<>();
-                            for (int i = 0; i < image.getWidth(); i++) {
-                                for (int j = 0; j < image.getHeight(); j++) {
-                                    if(boolMatrix[i][j]>=2){
-                                        surrounded.add(new Point(i,j));
+                                boolMatrix=new int[image.getWidth()][image.getHeight()];
+                                for(List<Point> pl : allPaths){
+                                    for(Point p : pl){
+                                        boolMatrix[p.x][p.y]=1;
                                     }
                                 }
+                                StuffAlgorithm.surround(boolMatrix,image.getWidth(),image.getHeight());
+                                //                            System.out.println(Arrays.deepToString(boolMatrix));
+
+
+
+                                Set<Point> surrounded= new HashSet<>();
+                                for (int i = 0; i < image.getWidth(); i++) {
+                                    for (int j = 0; j < image.getHeight(); j++) {
+                                        if(boolMatrix[i][j]>=2){
+                                            surrounded.add(new Point(i,j));
+                                        }
+                                    }
+                                }
+
+                                BufferedImage result = cropToMinimumBounds(image, surrounded);
+//                                try {
+//                                    ImageIO.write(result, "PNG", new File("output.png"));
+//                                } catch (IOException ex) {
+//                                    throw new RuntimeException(ex);
+//                                }
+
+                                showScalableImage(result,"图片");
                             }
-
-                            BufferedImage result = cropToMinimumBounds(image, surrounded);
-//                            try {
-//                                ImageIO.write(result, "PNG", new File("output.png"));
-//                            } catch (IOException ex) {
-//                                throw new RuntimeException(ex);
-//                            }
-
-                            showScalableImage(result,"图片");
-
-
-
 
                         }else if(SwingUtilities.isRightMouseButton(e)){
                             //双击右键清空所有点
