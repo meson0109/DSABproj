@@ -59,7 +59,7 @@
 ```
 IntelligentScissors/
 ├── src/
-│   ├── Main.java                 # 程序入口和GUI主框架
+│   ├── Main3.java                 # 程序入口和GUI主框架
 │   ├── DijkstraAlgorithm.java    # 最短路径算法实现
 │   ├── GrayConverter.java        # 图像灰度转换
 │   ├── SobelConverter.java       # Sobel边缘检测
